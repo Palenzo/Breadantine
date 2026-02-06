@@ -87,24 +87,41 @@ export const VALENTINE_DAYS = [
  * @param {number} dayDate - The date to check (7-14)
  * @returns {boolean}
  */
-export const isDayUnlocked = (dayDate) => {
-  // TESTING MODE: All days unlocked for development
-  return true
-  
-  /* PRODUCTION CODE - Uncomment for actual date-based unlocking
-  const now = new Date()
-  const currentMonth = now.getMonth()
-  const currentDate = now.getDate()
-  
-  // Check if it's February
-  if (currentMonth !== 1) {
-    // For testing, allow access outside February
-    return true
+import UnlockService from '../services/unlockService'
+
+export const isDayUnlocked = (dayOrDate) => {
+  // Accept either day id (string) or date number
+  let dayObj = null
+
+  if (typeof dayOrDate === 'string') {
+    dayObj = VALENTINE_DAYS.find(d => d.id === dayOrDate)
+  } else if (typeof dayOrDate === 'number') {
+    dayObj = VALENTINE_DAYS.find(d => d.date === dayOrDate)
   }
-  
-  // In February, check if date has passed
-  return currentDate >= dayDate
-  */
+
+  // If we couldn't map, fallback to false
+  if (!dayObj) return false
+
+  // If explicitly unlocked in localStorage, honor it
+  if (UnlockService.isUnlocked(dayObj.id)) return true
+
+  // Date-based unlocking fallback: use IST (UTC+5:30) so days open at 00:00 IST
+  const now = new Date()
+  // Compute current time in IST by shifting UTC to +5:30
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000)
+  const istOffsetMs = 5.5 * 60 * 60 * 1000
+  const istNow = new Date(utc + istOffsetMs)
+  const currentMonth = istNow.getMonth()
+  const currentDate = istNow.getDate()
+
+  // If not February, allow all in DEV; otherwise compute days until next Feb
+  if (currentMonth !== 1) {
+    if (import.meta.env && import.meta.env.DEV) return true
+    // Fallback: compare against local date in IST by projecting to next Feb
+    return currentDate >= dayObj.date
+  }
+
+  return currentDate >= dayObj.date
 }
 
 /**
@@ -112,7 +129,7 @@ export const isDayUnlocked = (dayDate) => {
  * @returns {Array} Array of unlocked days
  */
 export const getUnlockedDays = () => {
-  return VALENTINE_DAYS.filter(day => isDayUnlocked(day.date))
+  return VALENTINE_DAYS.filter(day => isDayUnlocked(day.id))
 }
 
 /**
@@ -120,7 +137,7 @@ export const getUnlockedDays = () => {
  * @returns {Array} Array of locked days
  */
 export const getLockedDays = () => {
-  return VALENTINE_DAYS.filter(day => !isDayUnlocked(day.date))
+  return VALENTINE_DAYS.filter(day => !isDayUnlocked(day.id))
 }
 
 /**
@@ -129,21 +146,25 @@ export const getLockedDays = () => {
  * @returns {number} Number of days until unlock
  */
 export const getDaysUntilUnlock = (dayDate) => {
+  // Use IST for consistent unlocking (UTC+5:30)
   const now = new Date()
-  const currentMonth = now.getMonth()
-  const currentDate = now.getDate()
-  
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000)
+  const istOffsetMs = 5.5 * 60 * 60 * 1000
+  const istNow = new Date(utc + istOffsetMs)
+  const currentMonth = istNow.getMonth()
+  const currentDate = istNow.getDate()
+
   if (currentMonth !== 1) {
-    // Calculate days until next February
-    const nextFebruary = new Date(now.getFullYear() + 1, 1, dayDate)
-    const diff = nextFebruary - now
+    // Calculate days until next February in IST
+    const nextFebruary = new Date(istNow.getFullYear() + 1, 1, dayDate)
+    const diff = nextFebruary - istNow
     return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }
-  
+
   if (currentDate >= dayDate) {
     return 0
   }
-  
+
   return dayDate - currentDate
 }
 
@@ -154,6 +175,17 @@ export const getDaysUntilUnlock = (dayDate) => {
 export const getNextDayToUnlock = () => {
   const locked = getLockedDays()
   return locked.length > 0 ? locked[0] : null
+}
+
+/**
+ * Programmatically unlock the next day after `dayId` and return the unlocked id
+ */
+export const unlockNextDay = (dayId) => {
+  return UnlockService.unlockNext(dayId)
+}
+
+export const getUnlockOrder = () => {
+  return UnlockService.getOrder()
 }
 
 /**

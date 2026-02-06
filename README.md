@@ -116,15 +116,9 @@ valentine-ayushi/
 
 ## 🎯 How to Use
 
-### First Visit
-1. **Landing Page**: Click the "YES" button (the "NO" button will escape!)
-2. **Password Gate**: Enter "samosa" (case-insensitive)
-3. **Welcome Popup**: Close the welcome message
-4. **Dashboard**: See all 8 days (locked/unlocked based on date)
-
 ### Unlocking Days
 - Days unlock automatically based on your system date
-- **Testing Mode**: To test all days, modify `unlock-system.js`:
+- **Testing Mode**: To test all days, modify `unlockService.js`:
   ```javascript
   // Change this line (around line 16):
   isUnlocked(dayKey) {
@@ -198,7 +192,7 @@ Edit `src/pages/days/ValentineDay.jsx` to customize the finale message>
 
 ### Days Not Unlocking?
 - Check your system date is correct
-- Enable testing mode in `unlock-system.js`
+- Enable testing mode in `unlockService.js`
 - Clear localStorage: `localStorage.clear()` in console
 
 ### Games Not Working?

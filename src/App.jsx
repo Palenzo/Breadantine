@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import Landing from './pages/Landing'
 import Password from './pages/Password'
 import Dashboard from './pages/Dashboard'
+import BackgroundMusic from './components/BackgroundMusic'
 import RoseDay from './pages/days/RoseDay'
 import ProposeDay from './pages/days/ProposeDay'
 import ChocolateDay from './pages/days/ChocolateDay'
@@ -17,6 +18,7 @@ import './App.css'
 function App() {
   return (
     <Router>
+      <BackgroundMusic />
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<Landing />} />

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import DayPage from './DayPage'
 import { motion, AnimatePresence } from 'framer-motion'
 import ScoreService from '../../services/scoreService'
+import { unlockNextDay } from '../../utils/unlockSystem'
 
 const ChocolateDay = () => {
   // legacy click counter removed; using `chocolates` as primary counter
@@ -359,6 +360,7 @@ const ChocolateDay = () => {
               console.log('Saving score payload', payload)
               const res = await ScoreService.saveScore(payload.gameType, payload.score, payload.playerName)
               console.log('Saved chocolate score', res)
+              try { unlockNextDay('chocolate') } catch (e) {}
               loadLeaderboard()
             }} className="btn">Save Score</motion.button>
           </div>

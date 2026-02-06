@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import DayPage from './DayPage'
 import { motion } from 'framer-motion'
 import ScoreService from '../../services/scoreService'
+import { unlockNextDay } from '../../utils/unlockSystem'
 import { AnimatePresence } from 'framer-motion'
 
 const KissDay = () => {
@@ -263,6 +264,8 @@ const KissDay = () => {
               console.log('Saving score payload', payload)
               const res = await ScoreService.saveScore(payload.gameType, payload.score, payload.playerName)
               console.log('Saved kiss score', res)
+              // Unlock next day in sequence
+              try { unlockNextDay('kiss') } catch (e) { /* ignore */ }
               loadLeaderboard()
             }} className="btn">Save Score</motion.button>
           </div>

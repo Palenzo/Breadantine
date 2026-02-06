@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import DayPage from './DayPage'
 import { motion } from 'framer-motion'
 import ScoreService from '../../services/scoreService'
+import { unlockNextDay } from '../../utils/unlockSystem'
 
 const RoseDay = () => {
   const [gameStarted, setGameStarted] = useState(false)
@@ -245,6 +246,7 @@ const RoseDay = () => {
                       console.log('Saving score payload', payload)
                       const res = await ScoreService.saveScore(payload.gameType, payload.score, payload.playerName, payload.metadata)
                       console.log('Saved score response', res)
+                      try { unlockNextDay('rose') } catch (e) {}
                       // refresh leaderboard
                       loadLeaderboard()
                     }}
