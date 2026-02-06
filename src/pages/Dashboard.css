@@ -476,14 +476,15 @@
 .welcome-modal-content p {
   font-size: 1.1rem;
   line-height: 1.8;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(184, 18, 18, 0.9);
   margin-bottom: 1rem;
+  font-family: monospace;
 }
 
 .welcome-signature {
   margin-top: 2rem;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(175, 54, 54, 0.8);
 }
 
 .welcome-signature strong {
@@ -497,7 +498,7 @@
   background: linear-gradient(135deg, #ff1493, #ff69b4);
   border: none;
   border-radius: 50px;
-  color: #fff;
+  color: #ffffff;
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import ThreeBackground from '../../components/ThreeBackground'
 import UnlockService from '../../services/unlockService'
-import { VALENTINE_DAYS } from '../../utils/unlockSystem'
+import { VALENTINE_DAYS, isDayUnlocked } from '../../utils/unlockSystem'
 import './DayPage.css'
 
 const DayPage = ({ title, icon, children, bgColor = '#FFF0F5', flowerType = 'hearts' }) => {
@@ -12,7 +12,8 @@ const DayPage = ({ title, icon, children, bgColor = '#FFF0F5', flowerType = 'hea
   // Derive day id from title by matching the known day names (titles include emoji)
   const dayMatch = VALENTINE_DAYS.find(d => title && title.includes(d.name))
   const dayId = dayMatch ? dayMatch.id : null
-  const isUnlocked = dayId ? UnlockService.isUnlocked(dayId) : true
+  // Use date-aware unlock check so days open automatically at 00:00 IST
+  const isUnlocked = dayId ? isDayUnlocked(dayId) : true
 
   return (
     <div className="day-page" style={{ background: bgColor }}>
