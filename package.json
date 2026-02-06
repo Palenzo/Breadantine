@@ -1,0 +1,52 @@
+{
+  "name": "valentine-ayushi",
+  "version": "2.0.0",
+  "description": "An interactive 8-day Valentine's Day journey built with React, Three.js, GSAP, and love ❤️",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run server\"",
+    "dev:client": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/server.js 3001",
+    "dev:full": "concurrently \"npm run dev\" \"npm run server\"",
+    "upload-assets": "node server/uploadAssets.js"
+  },
+  "keywords": [
+    "valentine",
+    "react",
+    "threejs",
+    "gsap",
+    "interactive",
+    "love"
+  ],
+  "author": "Aditya (for Ayushi)",
+  "license": "ISC",
+  "dependencies": {
+    "cloudinary": "^2.9.0",
+    "framer-motion": "^11.0.3",
+    "gridfs-stream": "^1.1.1",
+    "gsap": "^3.12.5",
+    "lucide-react": "^0.309.0",
+    "multer": "^1.4.4",
+    "multer-gridfs-storage": "^5.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "mongoose": "^8.22.1",
+    "vite": "^5.0.11"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
