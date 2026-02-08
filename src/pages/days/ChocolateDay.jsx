@@ -1008,43 +1008,6 @@ const ChocolateDay = () => {
                   </div>
                 )}
                 
-                <input
-                  type="text"
-                  placeholder="Enter your name (optional)"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '1rem',
-                    fontSize: '1.1rem',
-                    borderRadius: '12px',
-                    border: '2px solid #ddd',
-                    marginBottom: '1rem',
-                    textAlign: 'center'
-                  }}
-                />
-                
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={saveGameScore}
-                  style={{
-                    width: '100%',
-                    padding: '1.2rem',
-                    fontSize: '1.3rem',
-                    background: 'linear-gradient(135deg, #FF6B9D, #C77DFF)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontWeight: '700',
-                    marginBottom: '1rem',
-                    boxShadow: '0 4px 15px rgba(255, 107, 157, 0.4)'
-                  }}
-                >
-                  💾 Save Score
-                </motion.button>
-                
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
