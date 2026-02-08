@@ -1,437 +1,1091 @@
 import React, { useState, useEffect, useRef } from 'react'
 import DayPage from './DayPage'
 import { motion, AnimatePresence } from 'framer-motion'
-import ScoreService from '../../services/scoreService'
 import { unlockNextDay } from '../../utils/unlockSystem'
 
 const ChocolateDay = () => {
-  // legacy click counter removed; using `chocolates` as primary counter
-  const [floatingHearts, setFloatingHearts] = useState([])
-  const [showMessage, setShowMessage] = useState(false)
-  const [currentMessage, setCurrentMessage] = useState('')
-  const [bonusTarget, setBonusTarget] = useState(null)
-  const bonusTimerRef = useRef(null)
-  const [playerName, setPlayerName] = useState('')
-  const [leaderboard, setLeaderboard] = useState([])
-  // Game state for Chocolate Factory Tycoon
-  const TOTAL_TIME = 120 // seconds
-  const [timeLeft, setTimeLeft] = useState(TOTAL_TIME)
-  const [running, setRunning] = useState(false)
-  const [autoRate, setAutoRate] = useState(0) // chocolates per second
-  const [levels, setLevels] = useState({ maker: 0, mixer: 0, wrapper: 0, turbo: 0, heartShaper: 0 })
-  const [chocolates, setChocolates] = useState(0)
-  const [goldens, setGoldens] = useState([])
+  const [activeStory, setActiveStory] = useState(null)
+  const [collectedChocolates, setCollectedChocolates] = useState([])
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+  const [chocolateCount, setChocolateCount] = useState(0)
+  const [showCompletionMessage, setShowCompletionMessage] = useState(false)
+  
+  // Game states
+  const [gameActive, setGameActive] = useState(false)
+  const [gameScore, setGameScore] = useState(0)
+  const [gameOver, setGameOver] = useState(false)
+  const [highScore, setHighScore] = useState(0)
+  const [playerPosition, setPlayerPosition] = useState(50)
+  const [fallingChocolates, setFallingChocolates] = useState([])
+  const [gameTimeLeft, setGameTimeLeft] = useState(30)
+  const [missedChocolates, setMissedChocolates] = useState(0)
+  const gameLoopRef = useRef(null)
   const gameTimerRef = useRef(null)
-  const autoIntervalRef = useRef(null)
-  const goldenTimerRef = useRef(null)
+  const gameAreaRef = useRef(null)
 
-  const loveMessages = [
-    "I love your smile ❤️",
-    "I love how you laugh 💕",
-    "I love your kindness 💖",
-    "I love your eyes ✨",
-    "I love talking to you 💬",
-    "I love your intelligence 🧠",
-    "I love your heart ❤️",
-    "I love your passion 🔥",
-    "I love everything about you 💝",
-    "You're my everything 👑",
-    "You make me complete 💫",
-    "You're my queen 👸",
-    "Forever yours 💍",
-    "You're my best friend 🤝",
-    "You're my soulmate 💞",
-    "I cherish you always 🌹",
-    "You're irreplaceable 💎",
-    "My heart belongs to you 💓",
-    "You're my dream come true 🌟",
-    "Together forever 🔐"
+  const stories = [
+    {
+      id: 1,
+      title: "The Corona Chronicles",
+      icon: "🏠",
+      color: "#FF6B9D",
+      story: "During lockdown, I couldn't stay away. I rode all the way to your house just to see you, even from a distance. Left a chocolate at your gate like a secret admirer. You had to throw your slipper to bring it back! 😄 Social distancing couldn't keep my love away.",
+      image: "🚪👟🍫",
+      chocolate: "🍫"
+    },
+    {
+      id: 2,
+      title: "The Keventers Upgrade",
+      icon: "🥤",
+      color: "#C77DFF",
+      story: "Remember when your chocolate dreams were just Dairy Milk? Then came Keventers. I loved seeing your face light up as your choices evolved - Lotus Biscoff, honey ice cream shakes... Making your taste premium became my favorite mission.",
+      image: "🍫➡️🍪🍯🥤",
+      chocolate: "🍫"
+    },
+    {
+      id: 3,
+      title: "The Choki Choki Delivery",
+      icon: "📦",
+      color: "#FF9F1C",
+      story: "That time I delivered Choki Choki to your house and your family thought you were in love with the JioMart delivery guy! 😂 Little did they know it was me behind those surprise chocolate deliveries. Worth every confused look!",
+      image: "📦💕❓",
+      chocolate: "🍫"
+    },
+    {
+      id: 4,
+      title: "The Surprise Visits",
+      icon: "🚶",
+      color: "#06FFA5",
+      story: "Random visits to Aakash, Momo Magic Cafe... anywhere you were, I'd show up with chocolates. Couldn't let a day pass without making sure you had something sweet, because nothing was sweeter than seeing your smile when you saw me.",
+      image: "🏃💨🍫😊",
+      chocolate: "🍫"
+    },
+    {
+      id: 5,
+      title: "The Belgian Waffle Blast",
+      icon: "🧇",
+      color: "#FFD93D",
+      story: "Idk how many times Zomato and Swiggy se aapke liye itne saare waffles and cold coffees order kiye, ekdm meethi ho gyi ho tum! But seeing you enjoy those sweet treats made it all worth it. You turned every delivery into a mini celebration of our love.",
+      image: "🧇🍫🥤🎉",
+      chocolate: "🍫"
+    }
   ]
 
-  const handleClick = (e) => {
-    if (chocolates >= 112) return
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-
-    // Add floating heart
-    const heartId = Date.now() + Math.random()
-    setFloatingHearts(prev => [...prev, { id: heartId, x, y }])
-
-    setTimeout(() => {
-      setFloatingHearts(prev => prev.filter(h => h.id !== heartId))
-    }, 1000)
-
-    const newCount = chocolates + 1
-    setChocolates(newCount)
-
-    // If we hit completion, save score
-    if (newCount >= 112) {
-      ScoreService.saveScore('chocolate-clicker', newCount, 'Ayushi').then(r => console.log('Saved chocolate completion', r))
-    }
-
-    // Show message every 10
-    if (newCount % 10 === 0 && newCount <= 112) {
-      const messageIndex = Math.floor(newCount / 10) - 1
-      setCurrentMessage(loveMessages[messageIndex % loveMessages.length])
-      setShowMessage(true)
-      setTimeout(() => setShowMessage(false), 3000)
-    }
-
-    // Save progress
-    localStorage.setItem('chocolate_day_clicks', newCount.toString())
-  }
-
   useEffect(() => {
-    const saved = localStorage.getItem('chocolate_day_clicks')
-    if (saved) setChocolates(parseInt(saved))
-    // start bonus target cycle
-    bonusTimerRef.current = setInterval(() => {
-      // spawn a bonus target at a random position within 300x300 area
-      const x = Math.random() * 300 + 50
-      const y = Math.random() * 200 + 20
-      setBonusTarget({ id: Date.now(), x, y })
-      // remove after 3s
-      setTimeout(() => setBonusTarget(null), 3000)
-    }, 8000)
-    return () => clearInterval(bonusTimerRef.current)
+    const saved = localStorage.getItem('chocolate_day_collected')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      setCollectedChocolates(parsed)
+      setChocolateCount(parsed.length)
+      if (parsed.length >= stories.length) {
+        setShowCompletionMessage(true)
+      }
+    }
+    
+    // Load high score from localStorage
+    const savedHighScore = localStorage.getItem('chocolate_catch_high_score')
+    if (savedHighScore) {
+      setHighScore(parseInt(savedHighScore))
+    }
   }, [])
 
-  // Calculate autoRate whenever levels change
+  // Game loop for falling chocolates
   useEffect(() => {
-    const base = (levels.maker * 1) + (levels.mixer * 3) + (levels.wrapper * 5) + (levels.turbo * 10)
-    setAutoRate(base)
-  }, [levels])
-
-  // Auto-generation interval
-  useEffect(() => {
-    if (!running) return
-    if (autoIntervalRef.current) clearInterval(autoIntervalRef.current)
-    autoIntervalRef.current = setInterval(() => {
-      setChocolates(c => c + autoRate)
-    }, 1000)
-    return () => clearInterval(autoIntervalRef.current)
-  }, [running, autoRate])
+    if (!gameActive) return
+    
+    gameLoopRef.current = setInterval(() => {
+      // Spawn new chocolate
+      if (Math.random() < 0.25) {
+        const newChocolate = {
+          id: Date.now() + Math.random(),
+          x: Math.random() * 90 + 5,
+          y: 0,
+          speed: Math.random() * 0.8 + 0.8,
+          type: Math.random() < 0.1 ? 'golden' : 'normal'
+        }
+        setFallingChocolates(prev => [...prev, newChocolate])
+      }
+      
+      // Move chocolates down and check for misses
+      setFallingChocolates(prev => {
+        const updated = prev.map(choc => ({ ...choc, y: choc.y + choc.speed }))
+        const missed = updated.filter(choc => choc.y >= 100)
+        
+        if (missed.length > 0) {
+          setMissedChocolates(m => {
+            const newMissed = m + missed.length
+            if (newMissed >= 10) {
+              setTimeout(() => endGame(newMissed), 100)
+            }
+            return newMissed
+          })
+        }
+        
+        return updated.filter(choc => choc.y < 100)
+      })
+    }, 150)
+    
+    return () => clearInterval(gameLoopRef.current)
+  }, [gameActive])
 
   // Game timer
   useEffect(() => {
-    if (!running) return
+    if (!gameActive) return
+    
     gameTimerRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) {
-          clearInterval(gameTimerRef.current)
-          endGame()
+      setGameTimeLeft(prev => {
+        if (prev <= 1) {
+          endGame(missedChocolates)
           return 0
         }
-        return t - 1
+        return prev - 1
       })
     }, 1000)
+    
     return () => clearInterval(gameTimerRef.current)
-  }, [running])
+  }, [gameActive, missedChocolates])
 
-  // Golden chocolate spawns during CHAOS (last 30s)
+  // Check collisions
   useEffect(() => {
-    if (!running) return
-    if (timeLeft <= 30) {
-      // start golden spawns
-      if (!goldenTimerRef.current) {
-        goldenTimerRef.current = setInterval(() => {
-          const id = Date.now() + Math.random()
-          setGoldens(g => [...g, { id, x: Math.random() * 320 + 20, y: Math.random() * 220 + 40 }])
-          // auto remove after 6s
-          setTimeout(() => setGoldens(g => g.filter(x => x.id !== id)), 6000)
-        }, 800)
+    if (!gameActive) return
+    
+    fallingChocolates.forEach(choc => {
+      if (choc.y > 85 && choc.y < 95) {
+        const chocolateCenter = choc.x + 2.5
+        const playerLeft = playerPosition - 5
+        const playerRight = playerPosition + 5
+        
+        if (chocolateCenter >= playerLeft && chocolateCenter <= playerRight) {
+          const points = choc.type === 'golden' ? 10 : 1
+          setGameScore(prev => prev + points)
+          setFallingChocolates(prev => prev.filter(c => c.id !== choc.id))
+        }
       }
-    } else {
-      if (goldenTimerRef.current) {
-        clearInterval(goldenTimerRef.current)
-        goldenTimerRef.current = null
-      }
-    }
-    return () => {
-      if (goldenTimerRef.current) {
-        clearInterval(goldenTimerRef.current)
-        goldenTimerRef.current = null
-      }
-    }
-  }, [timeLeft, running])
+    })
+  }, [fallingChocolates, playerPosition, gameActive])
 
-  const resetGame = () => {
-    setTimeLeft(TOTAL_TIME)
-    setRunning(false)
-    setLevels({ maker: 0, mixer: 0, wrapper: 0, turbo: 0, heartShaper: 0 })
-    setAutoRate(0)
-    setChocolates(0)
-    setGoldens([])
-    setGoldens([])
-  }
+  // Mouse/Touch controls
+  useEffect(() => {
+    if (!gameActive) return
+    
+    const handleMove = (clientX) => {
+      if (gameAreaRef.current) {
+        const rect = gameAreaRef.current.getBoundingClientRect()
+        const x = ((clientX - rect.left) / rect.width) * 100
+        setPlayerPosition(Math.max(10, Math.min(90, x)))
+      }
+    }
+    
+    const handleMouseMove = (e) => handleMove(e.clientX)
+    const handleTouchMove = (e) => {
+      e.preventDefault()
+      if (e.touches.length > 0) {
+        handleMove(e.touches[0].clientX)
+      }
+    }
+    
+    const gameArea = gameAreaRef.current
+    if (gameArea) {
+      gameArea.addEventListener('mousemove', handleMouseMove)
+      gameArea.addEventListener('touchmove', handleTouchMove, { passive: false })
+      
+      return () => {
+        gameArea.removeEventListener('mousemove', handleMouseMove)
+        gameArea.removeEventListener('touchmove', handleTouchMove)
+      }
+    }
+  }, [gameActive])
 
   const startGame = () => {
-    resetGame()
-    setRunning(true)
+    setGameActive(true)
+    setGameOver(false)
+    setGameScore(0)
+    setGameTimeLeft(30)
+    setPlayerPosition(50)
+    setFallingChocolates([])
+    setMissedChocolates(0)
   }
 
-  const endGame = async () => {
-    setRunning(false)
-    // Finalize count: stop at 112 goal
-    const final = Math.min(112, chocolates)
-    // If goal reached -> save and unlock message
-    if (final >= 112) {
-      await ScoreService.saveScore('chocolate-clicker', final, 'Ayushi')
-      console.log('Goal achieved saved', final)
-    } else {
-      await ScoreService.saveScore('chocolate-clicker', chocolates, 'Ayushi')
-      console.log('Game ended, saved partial', chocolates)
+  const endGame = (missedCount = missedChocolates) => {
+    setGameActive(false)
+    setGameOver(true)
+    if (gameLoopRef.current) clearInterval(gameLoopRef.current)
+    if (gameTimerRef.current) clearInterval(gameTimerRef.current)
+    
+    // Update high score in localStorage
+    if (gameScore > highScore) {
+      setHighScore(gameScore)
+      localStorage.setItem('chocolate_catch_high_score', gameScore.toString())
     }
   }
 
-  const currentPhase = () => {
-    if (timeLeft > 90) return 'Phase 1: Manual Harvest'
-    if (timeLeft > 60) return 'Phase 2: First Upgrade'
-    if (timeLeft > 30) return 'Phase 3: Factory Mode'
-    return 'Phase 4: CHAOS'
-  }
-
-  const buyUpgrade = (type) => {
-    const costs = {
-      maker: 20,
-      mixer: 50,
-      wrapper: 120,
-      turbo: 300,
-      heartShaper: 250
+  const collectChocolate = (storyId) => {
+    if (!collectedChocolates.includes(storyId)) {
+      const newCollected = [...collectedChocolates, storyId]
+      setCollectedChocolates(newCollected)
+      setChocolateCount(newCollected.length)
+      localStorage.setItem('chocolate_day_collected', JSON.stringify(newCollected))
+      
+      if (newCollected.length >= stories.length) {
+        setShowCompletionMessage(true)
+        try {
+          unlockNextDay('chocolate')
+        } catch (e) {
+          console.log('Unlock error:', e)
+        }
+      }
     }
-    const cost = Math.floor(costs[type] * Math.pow(1.5, levels[type]))
-    if (chocolates >= cost) {
-      setChocolates(c => c - cost)
-      setLevels(l => ({ ...l, [type]: l[type] + 1 }))
-    }
+    setActiveStory(null)
   }
 
-  const clickBean = () => {
-    // clicking yields 1 chocolate, heart shaper doubles value
-    const value = 1 * (levels.heartShaper > 0 ? 2 : 1)
-    setChocolates(c => c + value)
-    // small floating heart effect
-    const heartId = Date.now() + Math.random()
-    setFloatingHearts(prev => [...prev, { id: heartId, x: 160 + Math.random() * 80, y: 120 + Math.random() * 40 }])
-    setTimeout(() => setFloatingHearts(prev => prev.filter(h => h.id !== heartId)), 900)
+  const openWhatsApp = () => {
+    const message = encodeURIComponent("Blinkit karo na baby do kilo choclate, anal krungi, 69 krungi, kuch bhi krungi bas choclate dedo, tumse pyaar krti hu, choclate se bhi jyada")
+    const phoneNumber = "919431271900"
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank')
+    setShowWhatsAppModal(false)
   }
 
-  const collectGolden = (id) => {
-    setGoldens(g => g.filter(x => x.id !== id))
-    setChocolates(c => c + 10)
-  }
-
-  const loadLeaderboard = async () => {
-    try {
-      const data = await ScoreService.getHighScores('chocolate-clicker', 10)
-      if (Array.isArray(data)) setLeaderboard(data)
-      else if (data && data.scores) setLeaderboard(data.scores)
-    } catch (err) {
-      console.error('Failed loading chocolate leaderboard', err)
-    }
-  }
-
-  const progress = (chocolates / 112) * 100
+  const progress = (chocolateCount / stories.length) * 100
 
   return (
-    <DayPage title="🍫 Chocolate Day" icon="🍫" bgColor="linear-gradient(135deg, #FFF5E6 0%, #FFE4CC 100%)" flowerType="flowers">
-      <div className="glass" style={{ padding: '3rem 2rem', marginTop: '2rem', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '2.2rem', marginBottom: '0.5rem', color: '#8B4513' }}>
-          Chocolate Factory Tycoon — Build a chocolate empire for Ayushi
-        </h2>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
-          <div style={{ color: '#666' }}>Time: <strong>{timeLeft}s</strong></div>
-          <div style={{ color: '#666' }}>{currentPhase()}</div>
-          <div style={{ color: '#666' }}>Auto: <strong>{autoRate}/s</strong></div>
-        </div>
+    <DayPage 
+      title="🍫 Chocolate Day" 
+      icon="🍫" 
+      bgColor="linear-gradient(135deg, #FFF5E6 0%, #FFE4CC 100%)" 
+      flowerType="flowers"
+    >
+      <div className="glass" style={{ 
+        padding: '3rem 2rem', 
+        marginTop: '2rem', 
+        background: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '24px',
+        boxShadow: '0 8px 32px rgba(139, 69, 19, 0.15)'
+      }}>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          style={{ textAlign: 'center', marginBottom: '3rem' }}
+        >
+          <h2 style={{ 
+            fontSize: '2.8rem', 
+            background: 'linear-gradient(135deg, #8B4513, #D2691E)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: '1rem',
+            fontWeight: '800',
+            letterSpacing: '-0.5px'
+          }}>
+            Our Chocolate Love Story
+          </h2>
+          <p style={{ 
+            fontSize: '1.2rem', 
+            color: '#8B4513',
+            maxWidth: '600px',
+            margin: '0 auto',
+            lineHeight: '1.8'
+          }}>
+            Every chocolate tells a story of how I kept finding ways to make you smile, 
+            even when the world said stay apart. Click each memory to collect your chocolates! 💕
+          </p>
+        </motion.div>
 
         {/* Progress Bar */}
         <div style={{ 
           width: '100%', 
-          height: '30px', 
-          background: '#F0E6DC', 
-          borderRadius: '15px',
-          overflow: 'hidden',
-          marginBottom: '2rem',
-          border: '2px solid #8B4513'
+          maxWidth: '600px',
+          margin: '0 auto 3rem',
+          padding: '0 1rem'
         }}>
-          <motion.div
-            style={{
-              height: '100%',
-              background: 'linear-gradient(90deg, #8B4513, #D2691E)',
-              borderRadius: '15px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold'
-            }}
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.5 }}
-          >
-            {chocolates > 0 && `${chocolates}/112`}
-          </motion.div>
-        </div>
-
-        {/* Chocolate Factory UI */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxWidth: '900px', margin: '1.5rem auto' }}>
-          <div style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '5rem', cursor: running ? 'default' : 'pointer' }} onClick={() => { if (!running) startGame(); else clickBean() }}>
-              🍫
-            </div>
-            <div style={{ marginTop: '1rem' }}>
-              <div style={{ fontSize: '1.4rem' }}>Chocolates: <strong>{chocolates}</strong></div>
-              <div style={{ marginTop: '0.5rem' }}>
-                <motion.button className="btn" onClick={() => clickBean()} disabled={!running} style={{ marginRight: '0.5rem' }}>Click Cocoa (+{levels.heartShaper>0?2:1})</motion.button>
-                <motion.button className="btn" onClick={() => { if (!running) startGame(); else resetGame() }} style={{ marginLeft: '0.5rem' }}>{running ? 'Reset' : 'Start'}</motion.button>
-              </div>
-            </div>
-
-            {/* Floating Hearts */}
-            <AnimatePresence>
-              {floatingHearts.map(heart => (
-                <motion.div
-                  key={heart.id}
-                  initial={{ opacity: 1, x: heart.x, y: heart.y, scale: 0 }}
-                  animate={{ opacity: 0, y: heart.y - 100, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1 }}
-                  style={{ position: 'absolute', fontSize: '2rem', pointerEvents: 'none', zIndex: 10 }}
-                >
-                  💕
-                </motion.div>
-              ))}
-            </AnimatePresence>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            marginBottom: '0.5rem',
+            color: '#8B4513',
+            fontWeight: '600'
+          }}>
+            <span>Chocolates Collected</span>
+            <span>{chocolateCount}/{stories.length}</span>
           </div>
-
-          <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px' }}>
-            <h4 style={{ marginTop: 0 }}>Upgrades</h4>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>🍫 Chocolate Maker (1/s)</div>
-                <div>
-                  <motion.button className="btn" onClick={() => buyUpgrade('maker')}>Buy ({Math.floor(20 * Math.pow(1.5, levels.maker))})</motion.button>
-                  <span style={{ marginLeft: '0.5rem' }}>Lv {levels.maker}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>🏭 Auto-mixer (3/s)</div>
-                <div>
-                  <motion.button className="btn" onClick={() => buyUpgrade('mixer')}>Buy ({Math.floor(50 * Math.pow(1.5, levels.mixer))})</motion.button>
-                  <span style={{ marginLeft: '0.5rem' }}>Lv {levels.mixer}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>📦 Wrapper (5/s)</div>
-                <div>
-                  <motion.button className="btn" onClick={() => buyUpgrade('wrapper')}>Buy ({Math.floor(120 * Math.pow(1.5, levels.wrapper))})</motion.button>
-                  <span style={{ marginLeft: '0.5rem' }}>Lv {levels.wrapper}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>🚀 Turbo (10/s)</div>
-                <div>
-                  <motion.button className="btn" onClick={() => buyUpgrade('turbo')}>Buy ({Math.floor(300 * Math.pow(1.5, levels.turbo))})</motion.button>
-                  <span style={{ marginLeft: '0.5rem' }}>Lv {levels.turbo}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>💝 Heart Shaper (2x)</div>
-                <div>
-                  <motion.button className="btn" onClick={() => buyUpgrade('heartShaper')}>Buy ({Math.floor(250 * Math.pow(1.5, levels.heartShaper))})</motion.button>
-                  <span style={{ marginLeft: '0.5rem' }}>Lv {levels.heartShaper}</span>
-                </div>
-              </div>
-            </div>
-            <div style={{ marginTop: '1rem' }}>Goal: 112 chocolates — Extra become Love Points</div>
-          </div>
-        </div>
-
-        {/* Save Score + Leaderboard */}
-        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <div style={{ marginBottom: '0.5rem' }}>
-            <input placeholder="Your name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} style={{ padding: '0.5rem', borderRadius: '8px', marginRight: '0.5rem' }} />
-            <motion.button onClick={async () => {
-              const name = playerName.trim() || 'Anonymous'
-              const payload = { gameType: 'chocolate-clicker', score: chocolates, playerName: name }
-              console.log('Saving score payload', payload)
-              const res = await ScoreService.saveScore(payload.gameType, payload.score, payload.playerName)
-              console.log('Saved chocolate score', res)
-              try { unlockNextDay('chocolate') } catch (e) {}
-              loadLeaderboard()
-            }} className="btn">Save Score</motion.button>
-          </div>
-
-          <div style={{ maxWidth: '700px', margin: '1rem auto', background: 'rgba(255,255,255,0.7)', padding: '1rem', borderRadius: '10px' }}>
-            <h4>Leaderboard</h4>
-            <ol>
-              {leaderboard && leaderboard.length > 0 ? leaderboard.map((s, i) => (
-                <li key={i}><strong>{s.playerName || s.player || 'Anon'}</strong>: {s.score}</li>
-              )) : <li>No scores</li>}
-            </ol>
-            <motion.button className="btn" onClick={loadLeaderboard}>Refresh</motion.button>
-          </div>
-        </div>
-
-        {/* Message Display */}
-        <AnimatePresence>
-          {showMessage && (
+          <div style={{ 
+            width: '100%', 
+            height: '20px', 
+            background: 'rgba(139, 69, 19, 0.1)', 
+            borderRadius: '10px',
+            overflow: 'hidden',
+            border: '2px solid rgba(139, 69, 19, 0.2)'
+          }}>
             <motion.div
-              initial={{ opacity: 0, scale: 0.5, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.5, y: -20 }}
               style={{
-                padding: '1.5rem 2rem',
-                background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                height: '100%',
+                background: 'linear-gradient(90deg, #8B4513, #D2691E, #CD853F)',
+                borderRadius: '10px',
+              }}
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </div>
+        </div>
+
+        {/* Story Timeline */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '2rem',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '0 1rem'
+        }}>
+          {stories.map((story, index) => (
+            <motion.div
+              key={story.id}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1, duration: 0.5 }}
+              whileHover={{ y: -8, transition: { duration: 0.2 } }}
+              onClick={() => setActiveStory(story)}
+              style={{
+                background: `linear-gradient(135deg, ${story.color}15, ${story.color}25)`,
                 borderRadius: '20px',
-                fontSize: '1.5rem',
-                fontWeight: 'bold',
-                color: 'white',
-                textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                marginTop: '2rem',
-                boxShadow: '0 8px 20px rgba(255, 215, 0, 0.4)'
+                padding: '2rem',
+                cursor: 'pointer',
+                border: collectedChocolates.includes(story.id) 
+                  ? `3px solid ${story.color}` 
+                  : '3px solid transparent',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: collectedChocolates.includes(story.id)
+                  ? `0 8px 24px ${story.color}40`
+                  : '0 4px 12px rgba(0,0,0,0.08)',
+                transition: 'all 0.3s ease'
               }}
             >
-              {currentMessage}
+              {collectedChocolates.includes(story.id) && (
+                <motion.div
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  style={{
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
+                    fontSize: '2rem'
+                  }}
+                >
+                  ✨
+                </motion.div>
+              )}
+              
+              <div style={{ 
+                fontSize: '4rem', 
+                textAlign: 'center',
+                marginBottom: '1rem',
+                filter: collectedChocolates.includes(story.id) ? 'none' : 'grayscale(50%)'
+              }}>
+                {story.icon}
+              </div>
+              
+              <h3 style={{ 
+                fontSize: '1.5rem',
+                color: story.color,
+                textAlign: 'center',
+                marginBottom: '1rem',
+                fontWeight: '700'
+              }}>
+                {story.title}
+              </h3>
+              
+              <div style={{
+                fontSize: '2rem',
+                textAlign: 'center',
+                marginTop: '1rem',
+                opacity: collectedChocolates.includes(story.id) ? 1 : 0.3
+              }}>
+                {story.image}
+              </div>
+              
+              <div style={{
+                textAlign: 'center',
+                marginTop: '1rem',
+                fontSize: '0.9rem',
+                color: '#666',
+                fontWeight: '600'
+              }}>
+                {collectedChocolates.includes(story.id) ? '✓ Collected' : 'Click to read'}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Story Modal */}
+        <AnimatePresence>
+          {activeStory && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveStory(null)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '1rem'
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 50 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.8, y: 50 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'white',
+                  borderRadius: '24px',
+                  padding: '3rem',
+                  maxWidth: '600px',
+                  width: '100%',
+                  maxHeight: '80vh',
+                  overflow: 'auto',
+                  position: 'relative',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                }}
+              >
+                <div style={{
+                  fontSize: '5rem',
+                  textAlign: 'center',
+                  marginBottom: '1rem'
+                }}>
+                  {activeStory.icon}
+                </div>
+                
+                <h3 style={{
+                  fontSize: '2rem',
+                  color: activeStory.color,
+                  textAlign: 'center',
+                  marginBottom: '1.5rem',
+                  fontWeight: '700'
+                }}>
+                  {activeStory.title}
+                </h3>
+                
+                <p style={{
+                  fontSize: '1.2rem',
+                  lineHeight: '2',
+                  color: '#333',
+                  marginBottom: '2rem',
+                  textAlign: 'center'
+                }}>
+                  {activeStory.story}
+                </p>
+                
+                <div style={{
+                  fontSize: '4rem',
+                  textAlign: 'center',
+                  marginBottom: '2rem'
+                }}>
+                  {activeStory.image}
+                </div>
+                
+                {!collectedChocolates.includes(activeStory.id) ? (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => collectChocolate(activeStory.id)}
+                    style={{
+                      width: '100%',
+                      padding: '1.2rem',
+                      fontSize: '1.3rem',
+                      background: `linear-gradient(135deg, ${activeStory.color}, ${activeStory.color}dd)`,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '700',
+                      boxShadow: `0 4px 15px ${activeStory.color}40`
+                    }}
+                  >
+                    Collect Chocolate 🍫
+                  </motion.button>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    fontSize: '1.5rem',
+                    color: activeStory.color,
+                    fontWeight: '700'
+                  }}>
+                    ✨ Chocolate Collected! ✨
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => setActiveStory(null)}
+                  style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    right: '1rem',
+                    background: 'rgba(0,0,0,0.1)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ×
+                </button>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Completion Message */}
-        {chocolates >= 112 && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
+        <AnimatePresence>
+          {showCompletionMessage && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              style={{
+                marginTop: '3rem',
+                padding: '3rem',
+                background: 'linear-gradient(135deg, rgba(255, 105, 180, 0.15), rgba(255, 182, 193, 0.15))',
+                borderRadius: '24px',
+                border: '3px solid #FF69B4',
+                textAlign: 'center',
+                boxShadow: '0 8px 32px rgba(255, 105, 180, 0.3)'
+              }}
+            >
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
+                🎉🍫💕🍫🎉
+              </div>
+              <h3 style={{ 
+                fontSize: '2.5rem', 
+                color: '#FF1744', 
+                marginBottom: '1.5rem',
+                fontWeight: '800'
+              }}>
+                All Chocolates Collected!
+              </h3>
+              <p style={{ 
+                fontSize: '1.3rem', 
+                lineHeight: '2',
+                color: '#333',
+                maxWidth: '700px',
+                margin: '0 auto 2rem'
+              }}>
+                Ayushi, every chocolate I ever gave you was a piece of my heart. 
+                From throwing slippers during lockdown to upgrading your Keventers game, 
+                from confusing delivery guys to surprise cafe visits - 
+                each moment was about making you smile. 
+                You turned my simple gestures into our sweetest memories. 
+                You're sweeter than all the chocolates in the world combined. 🍫💖
+              </p>
+              
+              {/* Play Game Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={startGame}
+                style={{
+                  padding: '1.5rem 3rem',
+                  fontSize: '1.5rem',
+                  background: 'linear-gradient(135deg, #FF6B9D, #C77DFF)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50px',
+                  cursor: 'pointer',
+                  fontWeight: '800',
+                  boxShadow: '0 8px 24px rgba(255, 107, 157, 0.4)'
+                }}
+              >
+                🎮 Play Chocolate Catch Game!
+              </motion.button>
+              
+              <div style={{ marginTop: '1.5rem', fontSize: '1.2rem', color: '#8B4513', fontWeight: '600' }}>
+                High Score: {highScore} 🏆
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Blinkit Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            zIndex: 999
+          }}
+        >
+          <motion.button
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowWhatsAppModal(true)}
             style={{
-              marginTop: '3rem',
-              padding: '2rem',
-              background: 'linear-gradient(135deg, rgba(255, 23, 68, 0.1), rgba(255, 64, 129, 0.1))',
-              borderRadius: '20px',
-              border: '3px solid #FF1744'
+              padding: '1.2rem 2rem',
+              fontSize: '1.3rem',
+              background: 'linear-gradient(135deg, #25D366, #128C7E)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50px',
+              cursor: 'pointer',
+              fontWeight: '700',
+              boxShadow: '0 8px 24px rgba(37, 211, 102, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
             }}
           >
-            <h3 style={{ fontSize: '2rem', color: '#FF1744', marginBottom: '1rem' }}>
-              🎉 You Collected All 112 Chocolates! 🎉
-            </h3>
-            <p style={{ fontSize: '1.3rem', lineHeight: '2' }}>
-              Ayushi, I've said "I love you" 112 times and counting, 
-              but even that number can't capture how much you mean to me.
-              Every chocolate represents a moment, a feeling, a reason why you're my everything.
-              Sweet like chocolate, warm like your smile - that's how you make my life. 🍫💖
-            </p>
+            <span style={{ fontSize: '1.5rem' }}>💚</span>
+            Blinkit Karu?
+          </motion.button>
+        </motion.div>
+
+        {/* WhatsApp Modal */}
+        <AnimatePresence>
+          {showWhatsAppModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWhatsAppModal(false)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1001,
+                padding: '1rem'
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 50 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.8, y: 50 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'white',
+                  borderRadius: '24px',
+                  padding: '3rem',
+                  maxWidth: '500px',
+                  width: '100%',
+                  textAlign: 'center',
+                  position: 'relative',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                }}
+              >
+                <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>
+                  🍫📱💕
+                </div>
+                
+                <h3 style={{
+                  fontSize: '2rem',
+                  color: '#25D366',
+                  marginBottom: '1rem',
+                  fontWeight: '700'
+                }}>
+                  Missing Those Sweet Surprises?
+                </h3>
+                
+                <p style={{
+                  fontSize: '1.1rem',
+                  color: '#666',
+                  marginBottom: '2rem',
+                  lineHeight: '1.8'
+                }}>
+                  Send me a message and let's relive those chocolate delivery days! 
+                  Just like old times - but faster with Blinkit! 😄
+                </p>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={openWhatsApp}
+                  style={{
+                    width: '100%',
+                    padding: '1.2rem',
+                    fontSize: '1.3rem',
+                    background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '700',
+                    marginBottom: '1rem',
+                    boxShadow: '0 4px 15px rgba(37, 211, 102, 0.4)'
+                  }}
+                >
+                  💚 Open WhatsApp
+                </motion.button>
+                
+                <button
+                  onClick={() => setShowWhatsAppModal(false)}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    fontSize: '1.1rem',
+                    background: 'transparent',
+                    color: '#999',
+                    border: '2px solid #ddd',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  Maybe Later
+                </button>
+                
+                <button
+                  onClick={() => setShowWhatsAppModal(false)}
+                  style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    right: '1rem',
+                    background: 'rgba(0,0,0,0.1)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ×
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Hint for incomplete collection */}
+        {!showCompletionMessage && chocolateCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{
+              marginTop: '3rem',
+              padding: '1.5rem',
+              background: 'rgba(139, 69, 19, 0.05)',
+              borderRadius: '16px',
+              textAlign: 'center',
+              color: '#8B4513',
+              fontSize: '1.1rem',
+              fontWeight: '600'
+            }}
+          >
+            💡 Click on each story to relive the memory and collect all the chocolates!
           </motion.div>
         )}
 
-        {/* Instructions */}
-        {chocolates < 112 && (
-          <div style={{ marginTop: '2rem', color: '#666', fontSize: '1.1rem' }}>
-            <p>💡 Tip: Click the chocolate to collect pieces!</p>
-            <p>Get special messages every 10 chocolates! 💕</p>
-          </div>
-        )}
+        {/* Chocolate Catching Game */}
+        <AnimatePresence>
+          {gameActive && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.95)',
+                zIndex: 2000,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '2rem'
+              }}
+            >
+              {/* Game Header */}
+              <div style={{
+                position: 'absolute',
+                top: '2rem',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                gap: '2rem',
+                fontSize: '1.5rem',
+                color: 'white',
+                fontWeight: '700',
+                flexWrap: 'wrap',
+                justifyContent: 'center'
+              }}>
+                <div>Score: {gameScore}</div>
+                <div>Time: {gameTimeLeft}s</div>
+                <div style={{ color: missedChocolates >= 7 ? '#FF6B6B' : 'white' }}>Missed: {missedChocolates}/10</div>
+                <div>High: {highScore}</div>
+              </div>
+
+              {/* Game Area */}
+              <div 
+                ref={gameAreaRef}
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: '800px',
+                  height: '500px',
+                  background: 'linear-gradient(135deg, #FFF5E6 0%, #FFE4CC 100%)',
+                  borderRadius: '20px',
+                  overflow: 'hidden',
+                  border: '5px solid #8B4513',
+                  cursor: 'none',
+                  touchAction: 'none'
+                }}>
+                {/* Falling Chocolates */}
+                {fallingChocolates.map(choc => (
+                  <motion.div
+                    key={choc.id}
+                    style={{
+                      position: 'absolute',
+                      left: `${choc.x}%`,
+                      top: `${choc.y}%`,
+                      fontSize: choc.type === 'golden' ? '3rem' : '2.5rem',
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    {choc.type === 'golden' ? '⭐🍫' : '🍫'}
+                  </motion.div>
+                ))}
+
+                {/* Player Basket */}
+                <motion.div
+                  animate={{ left: `${playerPosition}%` }}
+                  transition={{ duration: 0.1 }}
+                  style={{
+                    position: 'absolute',
+                    bottom: '5%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '4rem',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  🧺
+                </motion.div>
+
+                {/* Instructions */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '2rem',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: '#8B4513',
+                  fontWeight: '700',
+                  fontSize: '1.1rem',
+                  textAlign: 'center',
+                  width: '90%'
+                }}>
+                  🖱️ Move cursor/finger to control basket | 🍫 = 1pt | ⭐🍫 = 10pts | Miss 10 = Game Over!
+                </div>
+              </div>
+
+
+
+              {/* Quit Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={endGame}
+                style={{
+                  marginTop: '1rem',
+                  padding: '1rem 2rem',
+                  fontSize: '1.2rem',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  border: '2px solid white',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Quit Game
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Game Over Modal */}
+        <AnimatePresence>
+          {gameOver && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2001,
+                padding: '1rem'
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 50 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.8, y: 50 }}
+                style={{
+                  background: 'white',
+                  borderRadius: '24px',
+                  padding: '3rem',
+                  maxWidth: '500px',
+                  width: '100%',
+                  textAlign: 'center',
+                  position: 'relative',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                }}
+              >
+                <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>
+                  {missedChocolates >= 10 ? '💔🍫' : gameScore > highScore ? '🏆🎉' : '🍫💝'}
+                </div>
+                
+                <h3 style={{
+                  fontSize: '2.5rem',
+                  color: missedChocolates >= 10 ? '#FF6B6B' : gameScore > highScore ? '#FFD700' : '#FF6B9D',
+                  marginBottom: '1rem',
+                  fontWeight: '800'
+                }}>
+                  {missedChocolates >= 10 ? 'Too Many Misses!' : gameScore > highScore ? 'NEW HIGH SCORE!' : 'Game Over!'}
+                </h3>
+                
+                <div style={{
+                  fontSize: '3rem',
+                  fontWeight: '800',
+                  color: '#8B4513',
+                  marginBottom: '1rem'
+                }}>
+                  {gameScore} Points
+                </div>
+                
+                <div style={{
+                  fontSize: '1.2rem',
+                  color: '#666',
+                  marginBottom: '1rem'
+                }}>
+                  Previous High Score: {highScore}
+                </div>
+                
+                {missedChocolates >= 10 && (
+                  <div style={{
+                    fontSize: '1.1rem',
+                    color: '#FF6B6B',
+                    fontWeight: '600',
+                    marginBottom: '1rem',
+                    padding: '0.5rem',
+                    background: 'rgba(255, 107, 107, 0.1)',
+                    borderRadius: '8px'
+                  }}>
+                    You missed {missedChocolates} chocolates! 💔
+                  </div>
+                )}
+                
+                <input
+                  type="text"
+                  placeholder="Enter your name (optional)"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    fontSize: '1.1rem',
+                    borderRadius: '12px',
+                    border: '2px solid #ddd',
+                    marginBottom: '1rem',
+                    textAlign: 'center'
+                  }}
+                />
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={saveGameScore}
+                  style={{
+                    width: '100%',
+                    padding: '1.2rem',
+                    fontSize: '1.3rem',
+                    background: 'linear-gradient(135deg, #FF6B9D, #C77DFF)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '700',
+                    marginBottom: '1rem',
+                    boxShadow: '0 4px 15px rgba(255, 107, 157, 0.4)'
+                  }}
+                >
+                  💾 Save Score
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={startGame}
+                  style={{
+                    width: '100%',
+                    padding: '1.2rem',
+                    fontSize: '1.3rem',
+                    background: 'linear-gradient(135deg, #06FFA5, #00D4AA)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '700',
+                    marginBottom: '1rem',
+                    boxShadow: '0 4px 15px rgba(6, 255, 165, 0.4)'
+                  }}
+                >
+                  🔄 Play Again
+                </motion.button>
+                
+                <button
+                  onClick={() => setGameOver(false)}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    fontSize: '1.1rem',
+                    background: 'transparent',
+                    color: '#999',
+                    border: '2px solid #ddd',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  Close
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </DayPage>
   )

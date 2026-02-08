@@ -4,7 +4,7 @@ const scoreSchema = new mongoose.Schema({
   gameType: {
     type: String,
     required: true,
-    enum: ['flappy-love', 'kiss-clicker', 'chocolate-clicker']
+    enum: ['flappy-love', 'kiss-clicker', 'chocolate-clicker', 'chocolate-day', 'chocolate-catch-game']
   },
   playerName: {
     type: String,
