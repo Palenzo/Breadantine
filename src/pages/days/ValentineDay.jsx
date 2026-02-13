@@ -24,7 +24,7 @@ const PHOTOS = [
 const MEMORY_CARDS = [
   {
     icon: Camera,
-    title: 'Our First Photo',
+    title: 'Cherished Moments',
     description: 'The moment I knew you were special',
     color: '#FF1744',
     photoIndex: 0
@@ -45,7 +45,7 @@ const MEMORY_CARDS = [
   },
   {
     icon: Gift,
-    title: 'First Gift',
+    title: 'Love at First Sight',
     description: 'Your reaction made my heart flutter',
     color: '#F50057',
     photoIndex: 3
@@ -114,6 +114,8 @@ const ValentineDay = () => {
   const [showRickroll, setShowRickroll] = useState(false)
   const [showWhatsAppPopup, setShowWhatsAppPopup] = useState(false)
   const [confettiActive, setConfettiActive] = useState(false)
+  const [openedIndices, setOpenedIndices] = useState(new Array(PHOTOS.length).fill(false))
+  const [showSongsModal, setShowSongsModal] = useState(false)
 
   useEffect(() => {
     // After 2 seconds, show rickroll popup
@@ -130,6 +132,11 @@ const ValentineDay = () => {
 
   const handleCardClick = (card) => {
     setSelectedCard(card)
+    setOpenedIndices(prev => {
+      const next = [...prev]
+      next[card.photoIndex] = true
+      return next
+    })
   }
 
   const closeModal = () => {
@@ -146,10 +153,20 @@ const ValentineDay = () => {
   }
 
   const handleWhatsAppSend = () => {
-    const message = "I love you Ayushi! Happy Valentine's Day! ❤️"
-    const phoneNumber = '' // Add Ayushi's phone number here
+    const message = "I love you Ayushi! Happy Valentine's Day! We could have done a lot of thing if we were together right now at the moment. I could fuck you right now but more I would love to sleep on ur laps❤️"
+    const phoneNumber = '+917970832811' // Add Ayushi's phone number here
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
+  }
+
+  useEffect(() => {
+    if (!showSongsModal && openedIndices.every(Boolean)) {
+      setShowSongsModal(true)
+    }
+  }, [openedIndices, showSongsModal])
+
+  const handleSongsClose = () => {
+    setShowSongsModal(false)
   }
 
   return (
@@ -375,6 +392,71 @@ const ValentineDay = () => {
       </AnimatePresence>
 
       {/* Final Message */}
+      <AnimatePresence>
+        {showSongsModal && (
+          <motion.div
+            className="songs-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleSongsClose}
+          >
+            <motion.div
+              className="songs-modal"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2>🎶 Our Songs</h2>
+              <div className="songs-list">
+                <div className="song-item">
+                  <strong>First song I sang (me):</strong>
+                  <div>Closer — The Chainsmokers</div>
+                  <div className="song-embed">
+                    <iframe
+                      width="100%"
+                      height="200"
+                      src="https://www.youtube.com/embed/J3G6ri_SiVE"
+                      title="Closer — The Chainsmokers"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                  <a href="https://www.youtube.com/watch?v=J3G6ri_SiVE" target="_blank" rel="noreferrer">Open on YouTube</a>
+                </div>
+
+                <div className="song-item">
+                  <strong>First song she sang to me (her):</strong>
+                  <div>Kaun Tujhe — MS Dhoni (movie)</div>
+                  <div className="song-embed">
+                    <iframe
+                      width="100%"
+                      height="200"
+                      src="https://www.youtube.com/embed/atVof3pjT-I"
+                      title="Kaun Tujhe — MS Dhoni"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                  <a href="https://www.youtube.com/watch?v=atVof3pjT-I" target="_blank" rel="noreferrer">Open on YouTube</a>
+                </div>
+              </div>
+
+              <motion.button
+                className="songs-close-btn"
+                onClick={handleSongsClose}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Close
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <motion.div 
         className="final-message"
         initial={{ opacity: 0 }}
